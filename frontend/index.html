@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Processing Application</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Document Processing Application</h1>
+        <div class="input-screen">
+            <label for="question">Question:</label>
+            <input type="text" id="question" required>
+            
+            <label for="documents">Document URLs (comma-separated):</label>
+            <textarea id="documents" required></textarea>
+            
+            <button type="button" onclick="submitDocuments()">Submit</button>
+        </div>
+        <div class="output-screen" id="results"></div>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
