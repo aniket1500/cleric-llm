@@ -117,18 +117,16 @@ async def fetch_and_process_documents(question: str, urls: List[str], task_id: i
 #     else:
 #         return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
 @app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
-def get_question_and_facts(task_id: int):
+def get_question_and_facts(task_id: int = Query(..., description="The ID of the task to retrieve")):
     task = tasks.get(task_id)
-    if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+    if task is None:
+        return JSONResponse(status_code=404, content={"message": "Task not found"})
 
     if task['status'] == 'processing':
-        return JSONResponse(content={"status": "processing", "question": task['question'], "facts": None}, status_code=status.HTTP_202_ACCEPTED)
+        return JSONResponse(status_code=202, content={"message": "Task still processing", "status": task['status']})
 
     if task['status'] == 'done':
         return GetQuestionAndFactsResponse(**task)
-
-    raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @app.get("/", response_class=HTMLResponse)
