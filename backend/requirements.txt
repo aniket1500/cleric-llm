@@ -5,4 +5,5 @@ requests
 httpx
 openai
 python-dotenv
-mangum
+jinja2
+aiofiles

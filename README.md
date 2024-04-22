@@ -29,38 +29,18 @@ To set up the backend, follow these steps:
    pip install -r requirements.txt
    ```
 
-3. **Run the Backend Server:**
+3. **Run the Web Application in your root directory:**
    Start the backend server using `uvicorn`. This command will start the server on localhost with hot reload enabled, making it easier to develop and test changes without restarting the server manually.
 
    ```bash
-   uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+   uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8001
    ```
-
-### Frontend Setup
-
-To set up the frontend:
-
-1. **Navigate to the Frontend Directory:**
-   If your frontend files are located in a different directory, switch to that directory.
-
-   ```bash
-   cd path/to/frontend
-   ```
-
-2. **Serve the Frontend:**
-   You can use a simple static server to serve the frontend files. For instance, you can use Python's HTTP server.
-
-   ```bash
-   python -m http.server
-   ```
-
-   Now, you can access the frontend by navigating to `http://localhost:8000` in your web browser.
 
 ## Usage
 
 To use the application:
 
-- Open your web browser and navigate to `http://localhost:8000`.
+- Open your web browser and navigate to `http://localhost:8001`.
 - Use the web interface to submit queries and view the processed call logs as instructed by the UI.
 
 

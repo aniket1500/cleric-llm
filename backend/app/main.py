@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from fastapi.responses import HTMLResponse,JSONResponse
+from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from typing import List
 import httpx
@@ -17,13 +18,11 @@ from .models import DocumentSubmission, GetQuestionAndFactsResponse
 
 app = FastAPI()
 
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  # Allows all origins for demonstration purposes
-#     allow_credentials=True,
-#     allow_methods=["*"],  # Allows all methods
-#     allow_headers=["*"],  # Allows all headers
-# )
+# Serve static files
+app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
+
+# Setup template directory within the static folder
+templates = Jinja2Templates(directory="frontend/static")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,24 +41,6 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 # This will hold the tasks and their states
 tasks = {}
 task_id_counter = 1
-
-# @app.post("/submit_question_and_documents")
-# async def submit_question_and_documents(data: DocumentSubmission):
-#     global task_id_counter
-#     task_id = task_id_counter
-#     task_id_counter += 1
-
-#     # Proceed assuming the `data` variable now contains cleaned and valid data
-#     tasks[task_id] = {"question": data.question, "status": "processing", "facts": None}
-
-#     # Sort URLs by date and clean them up
-#     sorted_urls = sort_and_clean_urls(data.documents)
-
-#     # Process the documents on a separate thread
-#     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, sorted_urls, task_id)))
-#     thread.start()
-
-#     return {"message": "Processing started", "task_id": task_id}, 200
 
 @app.post("/submit_question_and_documents", status_code=status.HTTP_200_OK)
 async def submit_question_and_documents(data: DocumentSubmission):
@@ -138,13 +119,10 @@ def get_question_and_facts(task_id: int):
         return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
 
 
-
 @app.get("/", response_class=HTMLResponse)
 async def read_root(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# Create a Mangum handler instance
-handler = Mangum(app)
 
 if __name__ == "__main__":
     import uvicorn
