@@ -33,7 +33,7 @@ port = int(os.getenv("PORT", "8000"))
 
 tasks: Dict[int, Any] = {}
 task_id_counter = 1
-lock = Lock()
+# lock = Lock()
 
 # @app.post("/submit_question_and_documents", status_code=status.HTTP_200_OK)
 # @app.post("/submit_question_and_documents", status_code=200)
@@ -53,15 +53,12 @@ lock = Lock()
 #     # return {"message": "Processing started", "task_id": task_id}
 #     return JSONResponse(content={"message": "Processing started", "task_id": task_id})
 
-@app.post("/submit_question_and_documents", status_code=200)
+@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_202_ACCEPTED)
 async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
-    global task_id_counter
-    with lock:
-        task_id = task_id_counter
-        task_id_counter += 1
-
-    task = {"question": data.question, "status": "processing", "facts": None}
-    tasks[task_id] = task
+    global task_id_counter, tasks
+    task_id = task_id_counter
+    task_id_counter += 1
+    tasks[task_id] = {"question": data.question, "status": "processing", "facts": None}
 
     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
     thread.start()
@@ -122,14 +119,14 @@ async def fetch_and_process_documents(question: str, urls: List[str], task_id: i
 @app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
 def get_question_and_facts(task_id: int):
     task = tasks.get(task_id)
-    if task is None:
+    if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
     if task['status'] == 'processing':
-        return JSONResponse(status_code=202, content={"message": "Task still processing", "status": "processing"})
-    
+        return JSONResponse(content={"status": "processing", "question": task['question'], "facts": None}, status_code=status.HTTP_202_ACCEPTED)
+
     if task['status'] == 'done':
-        return task  # This assumes the task structure matches the response model directly
+        return GetQuestionAndFactsResponse(**task)
 
     raise HTTPException(status_code=500, detail="Internal server error")
 
