@@ -32,7 +32,9 @@ async function submitDocuments() {
 
 async function getFacts(taskId, resultSection) {
     try {
-        const response = await fetch(`https://cleric-llm-1.onrender.com:10000/get_question_and_facts?task_id=${taskId}`);
+        const response = await fetch(`https://cleric-llm-1.onrender.com:10000/get_question_and_facts?task_id=${taskId}`,{
+            method: 'GET'
+        });
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
