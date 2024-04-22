@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse,JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
+#from mangum import Mangum
 from typing import List
 import httpx
 import openai
@@ -16,6 +17,7 @@ import re
 from .models import DocumentSubmission, GetQuestionAndFactsResponse
 
 app = FastAPI()
+#handler = Mangum(app)
 
 # Serve static files
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
