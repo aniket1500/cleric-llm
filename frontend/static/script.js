@@ -8,7 +8,7 @@ async function submitDocuments() {
     resultSection.innerHTML = 'Processing...';
 
     try {
-        const response = await fetch('http://localhost:8001/submit_question_and_documents', {
+        const response = await fetch('http://localhost:10000/submit_question_and_documents', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ question, documents })
@@ -32,7 +32,7 @@ async function submitDocuments() {
 
 async function getFacts(taskId, resultSection) {
     try {
-        const response = await fetch(`http://localhost:8001/get_question_and_facts?task_id=${taskId}`);
+        const response = await fetch(`http://localhost:10000/get_question_and_facts?task_id=${taskId}`);
 
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
