@@ -53,7 +53,7 @@ task_id_counter = 1
 #     # return {"message": "Processing started", "task_id": task_id}
 #     return JSONResponse(content={"message": "Processing started", "task_id": task_id})
 
-@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_202_ACCEPTED)
+@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_200_OK)
 async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
     global task_id_counter, tasks
     task_id = task_id_counter
