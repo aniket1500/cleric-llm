@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function () {
     // const baseUrl = window.location.origin;
     const baseUrl = `${window.location.protocol}//${window.location.host}`;
+    console.log("baseUrl-->",baseUrl); 
 
     async function submitDocuments() {
         let question = document.getElementById('question').value;
@@ -9,6 +10,7 @@ document.addEventListener('DOMContentLoaded', function () {
         resultSection.innerHTML = 'Processing...';
 
         try {
+            console.log("baseUrl-->",baseUrl); 
             const response = await fetch(`${baseUrl}/submit_question_and_documents`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
