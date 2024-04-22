@@ -1,6 +1,5 @@
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
-from mangum import Mangum
 from fastapi.responses import HTMLResponse,JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -37,6 +36,7 @@ load_dotenv()
 
 # Set OpenAI API key from the environment
 openai.api_key = os.getenv("OPENAI_API_KEY")
+port = int(os.getenv("PORT", "8000"))
 
 # This will hold the tasks and their states
 tasks = {}
@@ -126,4 +126,5 @@ async def read_root(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    # uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
