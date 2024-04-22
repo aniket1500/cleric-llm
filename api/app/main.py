@@ -231,7 +231,14 @@ def get_question_and_facts(task_id: int):
         return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
 
 @app.get("/", response_class=HTMLResponse)
+@app.head("/", response_class=HTMLResponse, include_in_schema=False)
 async def read_root(request: Request):
+    if request.method == "HEAD":
+        # For HEAD requests, prepare the response but don't actually send content
+        response = templates.TemplateResponse("index.html", {"request": request})
+        response.body = b""  # Set response body to empty so nothing is sent
+        return response
+    # Normal GET request, return full page content
     return templates.TemplateResponse("index.html", {"request": request})
 
 if __name__ == "__main__":
