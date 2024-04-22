@@ -34,8 +34,10 @@ tasks: Dict[int, Any] = {}
 task_id_counter = 1
 lock = Lock()
 
-@app.post("/submit_question_and_documents", status_code=status.HTTP_200_OK)
+# @app.post("/submit_question_and_documents", status_code=status.HTTP_200_OK)
+@app.post("/submit_question_and_documents", status_code=200)
 async def submit_question_and_documents(data: DocumentSubmission):
+    print("Received data:", data.json())
     global task_id_counter
     with lock:
         task_id = task_id_counter
@@ -47,7 +49,8 @@ async def submit_question_and_documents(data: DocumentSubmission):
 
     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
     thread.start()
-    return {"message": "Processing started", "task_id": task_id}
+    # return {"message": "Processing started", "task_id": task_id}
+    return JSONResponse(content={"message": "Processing started", "task_id": task_id})
 
 def sort_and_clean_urls(urls: List[str]) -> List[str]:
     clean_urls = [url.strip().strip('"') for url in urls]
@@ -93,13 +96,40 @@ async def fetch_and_process_documents(question: str, urls: List[str], task_id: i
 #     else:
 #         return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
 
-@app.get("/get_question_and_facts")
-def get_question_and_facts(task_id: int = Query(..., description="The ID of the task to retrieve")):
-    task = tasks.get(task_id)
-    if task:
-        return JSONResponse(content=task, status_code=status.HTTP_200_OK)
+# @app.get("/get_question_and_facts")
+# def get_question_and_facts(task_id: int = Query(..., description="The ID of the task to retrieve")):
+#     task = tasks.get(task_id)
+#     if task:
+#         return JSONResponse(content=task, status_code=status.HTTP_200_OK)
+#     else:
+#         return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
+@app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
+def get_question_and_facts(task_id: int):
+    """
+    Retrieve the question and its related facts by task_id.
+    """
+    # Check if the task_id is present in the tasks dictionary
+    if task_id not in tasks:
+        # If task_id is not found, return 404 error
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    task = tasks[task_id]
+    # Check if the task is completed and ready to be sent
+    if task['status'] == 'done':
+        # Return the complete task information including question and facts
+        response = GetQuestionAndFactsResponse(
+            question=task['question'],
+            facts=task['facts'],
+            status=task['status']
+        )
+        return response
+    elif task['status'] == 'processing':
+        # If the task is still processing, inform the requester to wait
+        return JSONResponse(status_code=202, content={"message": "Task still processing", "status": "processing"})
     else:
-        return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
+        # Handle any other unexpected statuses
+        return JSONResponse(status_code=500, content={"message": "Internal server error", "status": "error"})
+
 
 @app.get("/", response_class=HTMLResponse)
 @app.head("/", response_class=HTMLResponse, include_in_schema=False)
