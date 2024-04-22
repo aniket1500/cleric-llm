@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse,JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -122,7 +122,10 @@ def get_question_and_facts(task_id: int):
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
+@app.head("/", response_class=HTMLResponse, include_in_schema=False)
+async def read_root(request: Request, response: Response):
+    if request.method == "HEAD":
+        return response
     return templates.TemplateResponse("index.html", {"request": request})
 
 
