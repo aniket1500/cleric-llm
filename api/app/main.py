@@ -32,36 +32,50 @@ tasks: Dict[int, Any] = {}
 task_id_counter = 1
 logger = logging.getLogger(__name__)
 
-@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_200_OK)
-async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
-    logger.info("Received submit request")
-    global task_id_counter, tasks
-    task_id = task_id_counter
-    task_id_counter += 1
-    tasks[task_id] = {"question": data.question, "status": "processing", "facts": None}
+# @app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_200_OK)
+# async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
+#     logger.info("Received submit request")
+#     global task_id_counter, tasks
+#     task_id = task_id_counter
+#     task_id_counter += 1
+#     tasks[task_id] = {"question": data.question, "status": "processing", "facts": None}
 
-    thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
-    thread.start()
-    logger.info("Processing initiated")
+#     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
+#     thread.start()
+#     logger.info("Processing initiated")
 
-    return {"message": "Processing started", "task_id": task_id}
+#     return {"message": "Processing started", "task_id": task_id}
 
 def sort_and_clean_urls(urls: List[str]) -> List[str]:
     clean_urls = [url.strip().strip('"') for url in urls]
     date_pattern = re.compile(r'\d{8}')
     return sorted(clean_urls, key=lambda x: datetime.strptime(date_pattern.search(x).group(), '%Y%m%d') if date_pattern.search(x) else datetime.min)
 
+@app.post("/submit_question_and_documents{path:path}", status_code=status.HTTP_200_OK)
+async def submit_question_and_documents_flexible(path: str, data: DocumentSubmission = Body(...)):
+    global task_id_counter, tasks
+
+    if path and path.strip('/') != "submit_question_and_documents":
+        return {"message": "Path not accepted", "status": "error"}
+
+    task_id = task_id_counter
+    task_id_counter += 1
+    tasks[task_id] = {"question": data.question, "status": "processing", "facts": None}
+
+    # Use the correct function and pass parameters correctly
+    asyncio.create_task(fetch_and_process_documents(data.question, data.documents, task_id))
+
+    return {"message": "Processing started", "task_id": task_id}
+
 
 async def fetch_and_process_documents(question: str, urls: List[str], task_id: int):
     try:
         # Ensure URLs are cleaned and sorted before making HTTP requests
-        cleaned_urls = sort_and_clean_urls(urls)
-        print("URLs being requested (cleaned):", cleaned_urls)  # Debug: Print cleaned URLs
-
+        cleaned_urls = [url.strip().strip('"') for url in urls]
         async with httpx.AsyncClient() as client:
             responses = await asyncio.gather(*(client.get(url) for url in cleaned_urls))
 
-        combined_documents = "\n".join(f"Call Log {i+1}\n{resp.text}" for i, resp in enumerate(responses) if resp.status_code == 200)
+        combined_documents = "\n".join(f"Call Log {i+1}: {resp.text}" for i, resp in enumerate(responses) if resp.status_code == 200)
         print("combined_documents", combined_documents)
         print("question-->", question)
         response = openai.chat.completions.create(
@@ -71,15 +85,12 @@ async def fetch_and_process_documents(question: str, urls: List[str], task_id: i
             ]
         )
         print("RESPONSE-->", response)
-        response_text = response.choices[0].message.content
-        facts = [fact.strip() for fact in response_text.split('\n') if fact.strip()]
-        print("FACTS-->", facts)
-
-        tasks[task_id]["facts"] = facts
+        tasks[task_id]["facts"] = [fact.strip() for fact in response.choices[0].message.content.split('\n') if fact.strip()]
         tasks[task_id]["status"] = "done"
+        print("FACTS-->", tasks[task_id]["facts"])
     except Exception as e:
         tasks[task_id]["status"] = "error"
-        print(f"Error during document processing for task {task_id}: {str(e)}")
+        print(f"Error processing documents for task {task_id}: {str(e)}")
 
 
 @app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
