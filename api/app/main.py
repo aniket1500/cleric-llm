@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import httpx
 import openai
 import logging
@@ -94,18 +94,19 @@ async def fetch_and_process_documents(question: str, urls: List[str], task_id: i
 
 
 @app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
-def get_question_and_facts(task_id: int):
+def get_question_and_facts(task_id: Optional[int] = Query(default=None, description="The ID of the task to retrieve")):
+    if task_id is None:
+        # Return a 422 Unprocessable Entity response indicating that the task_id is required
+        return JSONResponse(status_code=422, content={"message": "Task ID is required"})
+
     task = tasks.get(task_id)
     if not task:
-        raise HTTPException(status_code=404, detail="Task not found")
+        return JSONResponse(status_code=404, content={"message": "Task not found"})
 
     if task['status'] == 'processing':
-        return JSONResponse(content={"status": "processing", "question": task['question'], "facts": None}, status_code=status.HTTP_202_ACCEPTED)
+        return JSONResponse(status_code=202, content={"status": "processing", "question": task['question'], "facts": task['facts']})
 
-    if task['status'] == 'done':
-        return GetQuestionAndFactsResponse(**task)
-    
-    raise HTTPException(status_code=500, detail="Internal server error")
+    return GetQuestionAndFactsResponse(**task)
 
 @app.get("/", response_class=HTMLResponse)
 @app.head("/", response_class=HTMLResponse, include_in_schema=False)
