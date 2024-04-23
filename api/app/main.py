@@ -28,50 +28,40 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 port = int(os.getenv("PORT", "8000"))
 
-tasks: Dict[int, Any] = {}
-task_id_counter = 1
+# tasks: Dict[int, Any] = {}
+# latest_task_id: Optional[int] = None  
+# task_id_counter = 1
+# logger = logging.getLogger(__name__)
+
+# Logging configuration
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# @app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_200_OK)
-# async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
-#     logger.info("Received submit request")
-#     global task_id_counter, tasks
-#     task_id = task_id_counter
-#     task_id_counter += 1
-#     tasks[task_id] = {"question": data.question, "status": "processing", "facts": None}
-
-#     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
-#     thread.start()
-#     logger.info("Processing initiated")
-
-#     return {"message": "Processing started", "task_id": task_id}
+# Task storage, simplifying to a single task at a time
+current_task = None
 
 def sort_and_clean_urls(urls: List[str]) -> List[str]:
-    clean_urls = [url.strip().strip('"') for url in urls]
     date_pattern = re.compile(r'\d{8}')
-    return sorted(clean_urls, key=lambda x: datetime.strptime(date_pattern.search(x).group(), '%Y%m%d') if date_pattern.search(x) else datetime.min)
+    return sorted(
+        [url.strip().strip('"') for url in urls],
+        key=lambda x: datetime.strptime(date_pattern.search(x).group(), '%Y%m%d') if date_pattern.search(x) else datetime.min
+    )
 
-@app.post("/submit_question_and_documents{path:path}", status_code=status.HTTP_200_OK)
-async def submit_question_and_documents_flexible(path: str, data: DocumentSubmission = Body(...)):
-    global task_id_counter, tasks
+@app.post("/submit_question_and_documents", status_code=200)
+async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
+    global current_task
+    # Reset the task each time to ensure idempotency
+    current_task = {"question": data.question, "status": "processing", "facts": None}
 
-    if path and path.strip('/') != "submit_question_and_documents":
-        return {"message": "Path not accepted", "status": "error"}
-
-    task_id = task_id_counter
-    task_id_counter += 1
-    tasks[task_id] = {"question": data.question, "status": "processing", "facts": None}
-
-    # Use the correct function and pass parameters correctly
-    asyncio.create_task(fetch_and_process_documents(data.question, data.documents, task_id))
-
-    return {"message": "Processing started", "task_id": task_id}
+    # Asynchronous task initiation
+    asyncio.create_task(fetch_and_process_documents(data.question, data.documents))
+    return {"message": "Processing started"}
 
 
-async def fetch_and_process_documents(question: str, urls: List[str], task_id: int):
+async def fetch_and_process_documents(question: str, urls: List[str]):
+    global current_task
     try:
-        # Ensure URLs are cleaned and sorted before making HTTP requests
-        cleaned_urls = [url.strip().strip('"') for url in urls]
+        cleaned_urls = sort_and_clean_urls(urls)
         async with httpx.AsyncClient() as client:
             responses = await asyncio.gather(*(client.get(url) for url in cleaned_urls))
 
@@ -85,28 +75,22 @@ async def fetch_and_process_documents(question: str, urls: List[str], task_id: i
             ]
         )
         print("RESPONSE-->", response)
-        tasks[task_id]["facts"] = [fact.strip() for fact in response.choices[0].message.content.split('\n') if fact.strip()]
-        tasks[task_id]["status"] = "done"
-        print("FACTS-->", tasks[task_id]["facts"])
+        current_task["facts"] = [fact.strip() for fact in response.choices[0].message.content.split('\n') if fact.strip()]
+        current_task["status"] = "done"
+        print("FACTS-->", current_task["facts"])
     except Exception as e:
-        tasks[task_id]["status"] = "error"
-        print(f"Error processing documents for task {task_id}: {str(e)}")
+        logger.error(f"Error processing documents: {str(e)}")
+        current_task["status"] = "error"
 
 
 @app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
-def get_question_and_facts(task_id: Optional[int] = Query(default=None, description="The ID of the task to retrieve")):
-    if task_id is None:
-        # Return a 422 Unprocessable Entity response indicating that the task_id is required
-        return JSONResponse(status_code=422, content={"message": "Task ID is required"})
-
-    task = tasks.get(task_id)
-    if not task:
-        return JSONResponse(status_code=404, content={"message": "Task not found"})
-
-    if task['status'] == 'processing':
-        return JSONResponse(status_code=202, content={"status": "processing", "question": task['question'], "facts": task['facts']})
-
-    return GetQuestionAndFactsResponse(**task)
+def get_question_and_facts():
+    global current_task
+    if not current_task:
+        return JSONResponse(status_code=404, content={"message": "No task available."})
+    if current_task['status'] == 'processing':
+        return JSONResponse(status_code=202, content={"status": "processing", "question": current_task['question'], "facts": None})
+    return current_task
 
 @app.get("/", response_class=HTMLResponse)
 @app.head("/", response_class=HTMLResponse, include_in_schema=False)
