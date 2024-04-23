@@ -87,23 +87,11 @@ async def fetch_and_process_documents(question: str, urls: List[str]):
 def get_question_and_facts():
     global current_task
     if not current_task:
-        # If no task has been submitted or initialized
         return JSONResponse(status_code=404, content={"message": "No task available."})
-    
-    # If the task is still processing, inform the requester accordingly
     if current_task['status'] == 'processing':
-        return JSONResponse(status_code=202, content={"status": "processing", "question": current_task['question'], "facts": None})
-    
-    # If the task is done, return a 200 OK with the complete data
-    if current_task['status'] == 'done':
-        return JSONResponse(status_code=200, content={
-            "status": current_task['status'],
-            "question": current_task['question'],
-            "facts": current_task['facts']
-        })
-    
-    # Handle unexpected states
-    return JSONResponse(status_code=500, content={"message": "Unexpected task state"})
+        return JSONResponse(status_code=200, content={"status": "processing", "question": current_task['question'], "facts": None})
+    return current_task
+
 
 @app.get("/", response_class=HTMLResponse)
 @app.head("/", response_class=HTMLResponse, include_in_schema=False)
