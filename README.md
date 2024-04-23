@@ -15,11 +15,11 @@ This web application is designed to query and process call logs. It utilizes Fas
 
 To set up the backend, follow these steps:
 
-1. **Navigate to the Backend Directory:**
+1. **Navigate to the API Directory:**
    Open your terminal and change to the backend directory where the project files are located.
 
    ```bash
-   cd path/to/backend
+   cd path/to/api
    ```
 
 2. **Install Dependencies:**
@@ -35,6 +35,8 @@ To set up the backend, follow these steps:
    ```bash
    uvicorn backend.app.main:app --reload --host 0.0.0.0 --port 8001
    ```
+4. **The app is hosted on Render.com:**
+   The application is also available online at https://cleric-llm-1.onrender.com. You can access it to interact with the web interface without running it locally.
 
 ## Usage
 

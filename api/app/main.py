@@ -28,11 +28,6 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 port = int(os.getenv("PORT", "8000"))
 
-# tasks: Dict[int, Any] = {}
-# latest_task_id: Optional[int] = None  
-# task_id_counter = 1
-# logger = logging.getLogger(__name__)
-
 # Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -103,6 +98,7 @@ async def read_root(request: Request):
         return response
     # Normal GET request, return full page content
     return templates.TemplateResponse("index.html", {"request": request})
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
