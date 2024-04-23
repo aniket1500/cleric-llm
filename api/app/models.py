@@ -10,3 +10,5 @@ class GetQuestionAndFactsResponse(BaseModel):
     facts: Optional[List[str]] = None  # Use None as the default value to avoid issues when no facts are available
     status: str
 
+class SubmitQuestionAndDocumentsResponse(BaseModel):
+    task_id: int

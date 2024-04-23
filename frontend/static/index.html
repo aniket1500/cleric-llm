@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -22,6 +22,36 @@
         <div class="output-screen" id="results"></div>
     </div>
     
+    <script src="/static/script.js"></script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cleric Document Facts Summary with GPT-4 Integration</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="icon" href="/static/favicon.ico" type="image/x-icon">
+</head>
+<body>
+    <div class="container">
+        <h1>Cleric's GPT-4 Powered Call Logs Facts Summarizer</h1>
+        <div class="input-screen">
+            <form id="documentForm">
+                <label for="question">Question:</label>
+                <input type="text" id="question" required>
+
+                <label for="documents">Document URLs (comma-separated):</label>
+                <textarea id="documents" required></textarea>
+
+                <button type="button">Submit</button>
+            </form>
+        </div>
+        <div class="output-screen" id="results"></div>
+    </div>
+
     <script src="/static/script.js"></script>
 </body>
 </html>

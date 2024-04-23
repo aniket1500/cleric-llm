@@ -13,12 +13,9 @@ import asyncio
 from datetime import datetime
 import re
 from .models import DocumentSubmission, GetQuestionAndFactsResponse
-
 app = FastAPI()
-
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 templates = Jinja2Templates(directory="frontend/static")
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -26,34 +23,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 port = int(os.getenv("PORT", "8000"))
 
 tasks: Dict[int, Any] = {}
 task_id_counter = 1
-# lock = Lock()
 
-# @app.post("/submit_question_and_documents", status_code=status.HTTP_200_OK)
-# @app.post("/submit_question_and_documents", status_code=200)
-# async def submit_question_and_documents(data: DocumentSubmission):
-#     print("Received data:", data.json())
-#     global task_id_counter
-#     with lock:
-#         task_id = task_id_counter
-#         task_id_counter += 1
-
-#     task = {"question": data.question, "status": "processing", "facts": None}
-#     with lock:
-#         tasks[task_id] = task
-
-#     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
-#     thread.start()
-#     # return {"message": "Processing started", "task_id": task_id}
-#     return JSONResponse(content={"message": "Processing started", "task_id": task_id})
-
-@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_200_OK)
+@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_202_ACCEPTED)
 async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
     global task_id_counter, tasks
     task_id = task_id_counter
@@ -62,7 +39,6 @@ async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
 
     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
     thread.start()
-
     return {"message": "Processing started", "task_id": task_id}
 
 def sort_and_clean_urls(urls: List[str]) -> List[str]:
@@ -73,9 +49,12 @@ def sort_and_clean_urls(urls: List[str]) -> List[str]:
 
 async def fetch_and_process_documents(question: str, urls: List[str], task_id: int):
     try:
+        # Ensure URLs are cleaned and sorted before making HTTP requests
+        cleaned_urls = sort_and_clean_urls(urls)
+        print("URLs being requested (cleaned):", cleaned_urls)  # Debug: Print cleaned URLs
+
         async with httpx.AsyncClient() as client:
-            print("URLs being requested:", urls)  # Debug: Print URLs before requesting
-            responses = await asyncio.gather(*(client.get(url) for url in urls))
+            responses = await asyncio.gather(*(client.get(url) for url in cleaned_urls))
 
         combined_documents = "\n".join(f"Call Log {i+1}\n{resp.text}" for i, resp in enumerate(responses) if resp.status_code == 200)
         print("combined_documents", combined_documents)
@@ -88,46 +67,29 @@ async def fetch_and_process_documents(question: str, urls: List[str], task_id: i
         )
         print("RESPONSE-->", response)
         response_text = response.choices[0].message.content
-        # Ensure the facts are returned as a list
-        if isinstance(response_text, str):
-            facts = [fact.strip() for fact in response_text.split('\n') if fact.strip()]
-        else:
-            facts = response_text  # Assuming it's already in list format
-
+        facts = [fact.strip() for fact in response_text.split('\n') if fact.strip()]
         print("FACTS-->", facts)
+
         tasks[task_id]["facts"] = facts
         tasks[task_id]["status"] = "done"
     except Exception as e:
         tasks[task_id]["status"] = "error"
-        print(f"Error with GPT-4 API: {str(e)}")
+        print(f"Error during document processing for task {task_id}: {str(e)}")
 
-# @app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
-# def get_question_and_facts(task_id: int):
-#     task = tasks.get(task_id)
-#     if task:
-#         return JSONResponse(content=task, status_code=status.HTTP_200_OK)
-#     else:
-#         return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
 
-# @app.get("/get_question_and_facts")
-# def get_question_and_facts(task_id: int = Query(..., description="The ID of the task to retrieve")):
-#     task = tasks.get(task_id)
-#     if task:
-#         return JSONResponse(content=task, status_code=status.HTTP_200_OK)
-#     else:
-#         return JSONResponse(content={"message": "Task not found"}, status_code=status.HTTP_404_NOT_FOUND)
 @app.get("/get_question_and_facts", response_model=GetQuestionAndFactsResponse)
-def get_question_and_facts(task_id: int = Query(..., description="The ID of the task to retrieve")):
+def get_question_and_facts(task_id: int):
     task = tasks.get(task_id)
-    if task is None:
-        return JSONResponse(status_code=404, content={"message": "Task not found"})
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
 
     if task['status'] == 'processing':
-        return JSONResponse(status_code=202, content={"message": "Task still processing", "status": task['status']})
+        return JSONResponse(content={"status": "processing", "question": task['question'], "facts": None}, status_code=status.HTTP_202_ACCEPTED)
 
     if task['status'] == 'done':
         return GetQuestionAndFactsResponse(**task)
-
+    
+    raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.get("/", response_class=HTMLResponse)
 @app.head("/", response_class=HTMLResponse, include_in_schema=False)
@@ -139,7 +101,6 @@ async def read_root(request: Request):
         return response
     # Normal GET request, return full page content
     return templates.TemplateResponse("index.html", {"request": request})
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
