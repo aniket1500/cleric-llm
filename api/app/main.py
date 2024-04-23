@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Dict, Any
 import httpx
 import openai
+import logging
 from dotenv import load_dotenv
 import os
 from threading import Lock, Thread
@@ -29,9 +30,11 @@ port = int(os.getenv("PORT", "8000"))
 
 tasks: Dict[int, Any] = {}
 task_id_counter = 1
+logger = logging.getLogger(__name__)
 
-@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_202_ACCEPTED)
+@app.post("/submit_question_and_documents", response_model=Dict, status_code=status.HTTP_200_OK)
 async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
+    logger.info("Received submit request")
     global task_id_counter, tasks
     task_id = task_id_counter
     task_id_counter += 1
@@ -39,6 +42,8 @@ async def submit_question_and_documents(data: DocumentSubmission = Body(...)):
 
     thread = Thread(target=lambda: asyncio.run(fetch_and_process_documents(data.question, data.documents, task_id)))
     thread.start()
+    logger.info("Processing initiated")
+
     return {"message": "Processing started", "task_id": task_id}
 
 def sort_and_clean_urls(urls: List[str]) -> List[str]:
